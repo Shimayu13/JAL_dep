@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f5f3ef">
+  <title>JAL Flight Board</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="page-shell">
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="JAL Flight Board ホーム">
+        <span class="brand-mark" aria-hidden="true"><span></span></span>
+        <span class="brand-copy"><strong>JAL</strong><small>FLIGHT BOARD</small></span>
+      </a>
+      <div class="live-status"><span></span> LIVE DATA <em>ODPT</em></div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">JAPAN AIRLINES · LIVE OPERATIONS</p>
+          <h1>空の今を、<br><span>ひと目</span>で。</h1>
+          <p class="lead">現在飛行中のJAL便と、これから出発する便をリアルタイムで確認できます。</p>
+          <div class="updated"><span class="pulse"></span><span id="updated-at">最新情報を取得中</span></div>
+        </div>
+        <div class="hero-art" aria-hidden="true">
+          <div class="route-line"><i></i><i></i></div>
+          <svg class="plane" viewBox="0 0 178 114" role="img"><path d="M174 48.5c-2.5-5-10.7-6.2-20-5.8L112 45 73 3.5C70.5 1 67 .1 63.6 1L57 2.8l23 45-39 5.8-20-18-9 2.6 11.7 22.7L4 67.5l2.5 8.8 22-1.8 2.2 25.5 9-2.5 8-25.5 39.3-6.2-8 49.5 6.8-1c3.3-.5 6.2-2.5 8-5.3L121 60.3l36-5.8c11-1.7 19.4-2.2 17-6Z" fill="currentColor"/></svg>
+          <div class="hero-stat"><span>NOW IN THE AIR</span><strong id="hero-count">—</strong><small>JAL FLIGHTS</small></div>
+        </div>
+      </section>
+
+      <section class="board" aria-labelledby="board-title">
+        <div class="board-head">
+          <div>
+            <p class="section-label">FLIGHT INFORMATION</p>
+            <h2 id="board-title">運航状況</h2>
+          </div>
+          <div class="board-tools">
+            <label class="search">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg>
+              <input id="search" type="search" placeholder="便名・空港・機種で検索" autocomplete="off">
+            </label>
+            <label class="search-target">
+              <span>検索対象</span>
+              <select id="search-target" aria-label="検索対象">
+                <option value="all">すべて</option>
+                <option value="from">出発空港のみ</option>
+                <option value="to">到着空港のみ</option>
+              </select>
+            </label>
+            <label class="sort-control">
+              <span>並べ替え</span>
+              <select id="sort" aria-label="便の並べ替え">
+                <option value="default">日付・出発時刻順</option>
+                <option value="from">出発空港別</option>
+                <option value="to">到着空港別</option>
+                <option value="departure">出発時刻順</option>
+                <option value="arrival">到着時刻順</option>
+                <option value="aircraft">機種別</option>
+              </select>
+            </label>
+          </div>
+        </div>
+
+        <div class="tabs" role="tablist" aria-label="便の状態">
+          <button class="tab active" role="tab" aria-selected="true" data-tab="inAir">
+            <span class="tab-icon air">↗</span><span><small>現在</small>飛行中の便</span><b id="in-air-count">—</b>
+          </button>
+          <button class="tab" role="tab" aria-selected="false" data-tab="upcoming">
+            <span class="tab-icon clock">◷</span><span><small>本日・明日</small>これから出発</span><b id="upcoming-count">—</b>
+          </button>
+        </div>
+
+        <div class="scope-tabs" role="group" aria-label="国内線・国際線の絞り込み">
+          <button class="scope-tab active" data-scope="all" aria-pressed="true">すべて <b id="scope-all-count">—</b></button>
+          <button class="scope-tab" data-scope="domestic" aria-pressed="false">国内線 <b id="scope-domestic-count">—</b></button>
+          <button class="scope-tab" data-scope="international" aria-pressed="false">国際線 <b id="scope-international-count">—</b></button>
+        </div>
+
+        <div id="error" class="error" hidden></div>
+        <div class="list-summary">
+          <span id="visible-count">便情報を取得中</span>
+          <small>対象データはAPIから全件取得済みです</small>
+        </div>
+        <div id="flight-list" class="flight-list" aria-live="polite">
+          <div class="loading"><span></span><p>最新の運航情報を読み込んでいます</p></div>
+        </div>
+        <button id="show-more" class="show-more" hidden>すべて表示</button>
+      </section>
+    </main>
+
+    <footer>
+      <p>データ提供：公共交通オープンデータセンター</p>
+      <p>表示内容は実際の運航状況と異なる場合があります。最新情報はJAL公式サイトでもご確認ください。</p>
+    </footer>
+  </div>
+  <script src="/app.js" defer></script>
+</body>
+</html>
