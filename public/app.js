@@ -1,4 +1,5 @@
 const state = {
+  airline: 'JAL',
   data: { inAir: [], upcoming: [] },
   activeTab: 'inAir',
   scope: 'all',
@@ -28,12 +29,15 @@ function searchable(flight) {
   return values.join(' ').toLowerCase();
 }
 
-function timeTemplate(actual, scheduled, fallback) {
+function timeTemplate(actual, scheduled, fallback, dayOffset = 0) {
   const primary = actual || scheduled || fallback;
+  const displayed = primary
+    ? `${escapeHtml(primary)}${dayOffset ? ` <small class="day-offset">(+${dayOffset})</small>` : ''}`
+    : '—';
   if (actual) {
-    return `<time>${escapeHtml(primary)}</time><span class="time-meta">予定 ${escapeHtml(scheduled || '—')}</span>`;
+    return `<time>${displayed}</time><span class="time-meta">予定 ${escapeHtml(scheduled || '—')}</span>`;
   }
-  if (primary) return `<time>${escapeHtml(primary)}</time><span class="time-meta">予定時刻</span>`;
+  if (primary) return `<time>${displayed}</time><span class="time-meta">予定時刻</span>`;
   return '<time>—</time><span class="time-meta unavailable">時刻表未提供</span>';
 }
 
@@ -41,7 +45,7 @@ function sortFlights(flights) {
   if (state.sort === 'default') return flights.slice();
   const collator = new Intl.Collator('ja', { numeric: true, sensitivity: 'base' });
   const departure = (flight) => flight.scheduledDepartureTime || flight.departureTime || '99:99';
-  const arrival = (flight) => flight.scheduledArrivalTime || flight.arrivalTime || '99:99';
+  const arrival = (flight) => `${flight.arrivalDayOffset || 0}|${flight.scheduledArrivalTime || flight.arrivalTime || '99:99'}`;
   const compare = (left, right) => collator.compare(left, right);
 
   return flights.slice().sort((a, b) => {
@@ -79,7 +83,7 @@ function rowTemplate(flight, index) {
         </div>
         <div class="route-visual"><span class="line"><span class="mini-plane">✈</span></span></div>
         <div class="airport">
-          ${timeTemplate(flight.actualArrivalTime, flight.scheduledArrivalTime, flight.arrivalTime)}
+          ${timeTemplate(flight.actualArrivalTime, flight.scheduledArrivalTime, flight.arrivalTime, flight.arrivalDayOffset)}
           <strong>${escapeHtml(flight.to.name)}</strong><small>${escapeHtml(flight.to.code)}</small>
         </div>
       </div>
@@ -152,11 +156,13 @@ function formatUpdated(iso) {
 }
 
 async function loadFlights({ silent = false } = {}) {
+  const requestedAirline = state.airline;
   if (!silent) errorBox.hidden = true;
   try {
-    const response = await fetch('/api/flights', { cache: 'no-store' });
+    const response = await fetch(`/api/flights?airline=${requestedAirline}`, { cache: 'no-store' });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || '運航情報を取得できませんでした');
+    if (requestedAirline !== state.airline) return;
     state.data = data;
     document.querySelector('#in-air-count').textContent = data.counts.inAir;
     document.querySelector('#upcoming-count').textContent = data.counts.upcoming;
@@ -165,11 +171,58 @@ async function loadFlights({ silent = false } = {}) {
     errorBox.hidden = true;
     render();
   } catch (error) {
+    if (requestedAirline !== state.airline) return;
     if (!state.data.inAir.length && !state.data.upcoming.length) list.innerHTML = '<div class="empty"><p>運航情報を表示できません</p></div>';
     errorBox.textContent = error.message;
     errorBox.hidden = false;
   }
 }
+
+const airlineLabels = {
+  JAL: { name: 'JAPAN AIRLINES', short: 'JAL', brand: 'JAL', live: 'LIVE DATA', source: 'ODPT' },
+  ANA: { name: 'ALL NIPPON AIRWAYS', short: 'ANA', brand: 'ANA', live: 'LIVE DATA', source: 'ODPT' },
+  SKY: { name: 'SKYMARK AIRLINES', short: 'Skymark', brand: 'SKY', live: 'TIMETABLE', source: 'LOCAL CSV' },
+};
+
+function selectAirline(airline) {
+  state.airline = airline;
+  state.data = { inAir: [], upcoming: [] };
+  state.limit = 20;
+  const label = airlineLabels[airline];
+  document.body.dataset.airline = airline;
+  document.title = `${airline} Flight Board`;
+  document.querySelector('#brand-code').textContent = label.brand;
+  document.querySelector('#brand-link').setAttribute('aria-label', `${label.short} Flight Board ホーム`);
+  document.querySelector('#airline-eyebrow').textContent = `${label.name} · LIVE OPERATIONS`;
+  document.querySelector('#airline-lead').textContent = `現在飛行中の${label.short}便と、これから出発する便をリアルタイムで確認できます。`;
+  document.querySelector('#hero-airline').textContent = `${label.brand} FLIGHTS`;
+  document.querySelector('#footer-airline').textContent = label.short;
+  document.querySelector('#live-label').textContent = label.live;
+  document.querySelector('#data-source').textContent = label.source;
+  document.querySelector('#in-air-subtitle').textContent = airline === 'SKY' ? '時刻表推定' : '現在';
+  document.querySelector('#source-notice').hidden = airline !== 'SKY';
+  document.querySelector('#data-summary').textContent = airline === 'SKY'
+    ? 'CSV時刻表を全件読み込み済みです'
+    : '対象データはAPIから全件取得済みです';
+  document.querySelector('#in-air-count').textContent = '—';
+  document.querySelector('#upcoming-count').textContent = '—';
+  document.querySelector('#hero-count').textContent = '—';
+  document.querySelector('#updated-at').textContent = '最新情報を取得中';
+  list.innerHTML = '<div class="loading"><span></span><p>最新の運航情報を読み込んでいます</p></div>';
+  loadFlights();
+}
+
+document.querySelectorAll('.airline-tab').forEach((tab) => {
+  tab.addEventListener('click', () => {
+    if (tab.dataset.airline === state.airline) return;
+    document.querySelectorAll('.airline-tab').forEach((item) => {
+      const active = item === tab;
+      item.classList.toggle('active', active);
+      item.setAttribute('aria-selected', String(active));
+    });
+    selectAirline(tab.dataset.airline);
+  });
+});
 
 document.querySelectorAll('.tab').forEach((tab) => {
   tab.addEventListener('click', () => {

@@ -18,6 +18,7 @@ const context = {
   Date,
   Number,
   document: {
+    body: { dataset: {} },
     querySelector: () => ({ ...element }),
     querySelectorAll: () => [],
   },
@@ -26,11 +27,11 @@ const context = {
 };
 
 const appPath = path.join(__dirname, '..', 'public', 'app.js');
-const source = `${fs.readFileSync(appPath, 'utf8')}\n;globalThis.__test = { state, searchable, sortFlights, groupedRowsTemplate };`;
+const source = `${fs.readFileSync(appPath, 'utf8')}\n;globalThis.__test = { state, searchable, selectAirline, timeTemplate, sortFlights, groupedRowsTemplate };`;
 vm.runInNewContext(source, context, { filename: appPath });
 
-const { state, searchable, sortFlights, groupedRowsTemplate } = context.__test;
-const flight = (id, date, from, to, time, aircraft, dayLabel) => ({
+const { state, searchable, selectAirline, timeTemplate, sortFlights, groupedRowsTemplate } = context.__test;
+const flight = (id, date, from, to, time, aircraft, dayLabel, dayOffset = 0) => ({
   id, date, dayLabel, number: `JL${id}`,
   from: { code: from, name: from },
   to: { code: to, name: to },
@@ -38,6 +39,7 @@ const flight = (id, date, from, to, time, aircraft, dayLabel) => ({
   scheduledArrivalTime: time,
   departureTime: time,
   arrivalTime: time,
+  arrivalDayOffset: dayOffset,
   aircraft,
   status: 'scheduled',
   statusLabel: '定刻予定',
@@ -60,6 +62,12 @@ state.searchTarget = 'to';
 assert.doesNotMatch(searchable(hanedaDeparture), /hnd/);
 assert.match(searchable(hanedaArrival), /hnd/);
 
+assert.match(timeTemplate(null, '05:00', '05:00', 1), /05:00.*\(\+1\)/);
+
+selectAirline('SKY');
+assert.equal(state.airline, 'SKY');
+assert.equal(context.document.body.dataset.airline, 'SKY');
+
 state.sort = 'from';
 assert.deepEqual(Array.from(sortFlights(flights), (item) => item.id), ['2', '1', '3', '4', '5']);
 
@@ -68,6 +76,11 @@ assert.deepEqual(Array.from(sortFlights(flights), (item) => item.id), ['4', '3',
 
 state.sort = 'aircraft';
 assert.deepEqual(Array.from(sortFlights(flights), (item) => item.id), ['2', '3', '4', '1', '5']);
+
+const sameDayLate = flight('8', '2026-06-28', 'HND', 'CTS', '23:00', '738', '本日', 0);
+const nextDayEarly = flight('9', '2026-06-28', 'HND', 'FUK', '05:00', '738', '本日', 1);
+state.sort = 'arrival';
+assert.deepEqual(Array.from(sortFlights([nextDayEarly, sameDayLate]), (item) => item.id), ['8', '9']);
 
 state.activeTab = 'upcoming';
 const grouped = groupedRowsTemplate(sortFlights(flights), flights);
